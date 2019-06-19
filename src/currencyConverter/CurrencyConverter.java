@@ -1,6 +1,7 @@
 package currencyConverter;
 
 import com.google.gson.Gson;
+import org.apache.commons.math3.util.Precision;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,31 +13,28 @@ import java.util.*;
 
 public class CurrencyConverter {
     public static void main(String[] args) throws IOException {
-        //    http://api.nbp.pl/api/exchangerates/rates/a/usd/2016-04-04/?format=json
-        String root = "http://api.nbp.pl/api/exchangerates/rates/c/";
-        String format = "/?format=json";
+
         LocalDate now = LocalDate.now();
-        LocalDate monthAgo = now.minusMonths(2); // <- 1 sprzed 1 miesiąca wywala wyjątek "file not found exception...???
+        LocalDate monthAgo = now.minusMonths(2); // <- 1 sprzed 1 miesiąca wywala wyjątek "file not found exception...??? w przeglądarce strony nie znaleziono
         List<LocalDate> dates = Arrays.asList(now, monthAgo);
+
         Currency dollar = Currency.getInstance("USD");
         Currency euro = Currency.getInstance("EUR");
         Currency funt = Currency.getInstance("GBP");
         Currency frank = Currency.getInstance("CHF");
         List<Currency> currencies = Arrays.asList(dollar, euro, funt, frank);
-        ArrayList<URL> urls = new ArrayList<>();
-        ArrayList<CurrencyNBP> currencyNBPS = new ArrayList<>();
 
-        //list of URL based on currency and dates
+
+
+        //list of CurrencyNBP based on currency and dates
+        ArrayList<CurrencyNBP> currencyNBPS = new ArrayList<>();
         for (Currency currency : currencies) {
             for (LocalDate date : dates) {
-                urls.add(getURL(root, currency, date, format));
+                currencyNBPS.add(getCurrencyNBP(currency, date));
             }
         }
 
-        //list of CurrencyNBPS based on URL
-        for (URL url : urls) {
-            currencyNBPS.add(getCurrencyNBP(url));
-        }
+
 
         //printing currencies for every currency and date
         for (CurrencyNBP currency : currencyNBPS) {
@@ -54,29 +52,39 @@ public class CurrencyConverter {
             }
         }
 
+        for (Currency currency : currencies) {
+            double inputInPLN = 100.00;
+            double outputInValue;
+            double outputInPLN;
+            double difference;
+            CurrencyNBP currencyNBPNow = getCurrencyNBP(currency, now);
+            CurrencyNBP currencyNBPMonthAgo = getCurrencyNBP(currency, monthAgo);
+            outputInValue = currencyNBPMonthAgo.getCurrencyFromPLN(inputInPLN);
+            outputInPLN = currencyNBPNow.getPLNFromCurrency(outputInValue);
+            difference = Precision.round(outputInPLN - inputInPLN, 2);
+            System.out.printf("Wymieniając %s złotych dnia %s otrzymałeś %s %s. Wymieniając dzisiaj tę kwotę na" +
+                    " złote otrzymasz %s. Różnica wynosi %s %n%n", inputInPLN,
+                    monthAgo.toString(), outputInValue, currency.getCurrencyCode(), outputInPLN, difference);
+            }
+        }
 
 
 
-//        System.out.println(now);
-//        System.out.println(monthAgo);
-//        System.out.println(dollar.getCurrencyCode());
-//        System.out.println(euro.getCurrencyCode());
-//        System.out.println(funt.getCurrencyCode());
-//        System.out.println(frank.getCurrencyCode());
-//        System.out.println(urls);
-//        System.out.println(currencyNBPS);
 
 
-    }
 
-    private static URL getURL(String root, Currency currency, LocalDate date, String format)
+    private static URL getURL(Currency currency, LocalDate date)
             throws MalformedURLException {
+        //    http://api.nbp.pl/api/exchangerates/rates/a/usd/2016-04-04/?format=json
+        String root = "http://api.nbp.pl/api/exchangerates/rates/c/";
+        String format = "/?format=json";
         StringBuilder adress = new StringBuilder(root);
         adress.append(currency.getCurrencyCode() + "/" + date + format);
         return new URL(adress.toString());
     }
 
-    private static CurrencyNBP getCurrencyNBP(URL url) throws IOException {
+    private static CurrencyNBP getCurrencyNBP(Currency currency, LocalDate date) throws IOException {
+        URL url = getURL (currency, date);
         URLConnection connection = url.openConnection();
         InputStream input = connection.getInputStream();
         Scanner scanner = new Scanner(input);
