@@ -3,6 +3,8 @@ package currencyConverter;
 import com.google.gson.Gson;
 import org.apache.commons.math3.util.Precision;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
@@ -14,8 +16,8 @@ import java.util.*;
 public class CurrencyConverter {
     public static void main(String[] args) throws IOException {
 
-        LocalDate now = LocalDate.now();
-        LocalDate monthAgo = now.minusMonths(2); // <- 1 sprzed 1 miesiąca wywala wyjątek "file not found exception...??? w przeglądarce strony nie znaleziono
+        LocalDate now = LocalDate.now().minusDays(1);
+        LocalDate monthAgo = now.minusMonths(1);
         List<LocalDate> dates = Arrays.asList(now, monthAgo);
 
         Currency dollar = Currency.getInstance("USD");
@@ -24,8 +26,6 @@ public class CurrencyConverter {
         Currency frank = Currency.getInstance("CHF");
         List<Currency> currencies = Arrays.asList(dollar, euro, funt, frank);
 
-
-
         //list of CurrencyNBP based on currency and dates
         ArrayList<CurrencyNBP> currencyNBPS = new ArrayList<>();
         for (Currency currency : currencies) {
@@ -33,8 +33,6 @@ public class CurrencyConverter {
                 currencyNBPS.add(getCurrencyNBP(currency, date));
             }
         }
-
-
 
         //printing currencies for every currency and date
         for (CurrencyNBP currency : currencyNBPS) {
@@ -68,11 +66,6 @@ public class CurrencyConverter {
             }
         }
 
-
-
-
-
-
     private static URL getURL(Currency currency, LocalDate date)
             throws MalformedURLException {
         //    http://api.nbp.pl/api/exchangerates/rates/a/usd/2016-04-04/?format=json
@@ -84,15 +77,19 @@ public class CurrencyConverter {
     }
 
     private static CurrencyNBP getCurrencyNBP(Currency currency, LocalDate date) throws IOException {
-        URL url = getURL (currency, date);
-        URLConnection connection = url.openConnection();
-        InputStream input = connection.getInputStream();
+        InputStream input = null;
+        do {
+            try {
+                URL url = getURL (currency, date);
+                URLConnection connection = url.openConnection();
+                input = connection.getInputStream();
+            } catch (FileNotFoundException fnfe) {
+                date = date.minusDays(1);
+            }
+        }while (input == null);
         Scanner scanner = new Scanner(input);
         String jsonString = scanner.nextLine();
-//        System.out.println(jsonString);
         Gson gson = new Gson();
         return gson.fromJson(jsonString, CurrencyNBP.class);
     }
-
-
 }
